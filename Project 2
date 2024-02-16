@@ -1,0 +1,171 @@
+USE [SkyBarrelBank_UAT];
+
+-- Report 1
+
+SELECT
+    B.BorrowerID,
+    CONCAT(B.BorrowerFirstName, ' ', COALESCE(B.BorrowerMiddleInitial + ' ', ''), B.BorrowerLastName) AS BorrowerFullName,
+    CONCAT('XXX-XX-', RIGHT(B.TaxPayerID_SSN, 4)) AS MaskedSSN,
+    YEAR(PurchaseDate) AS YearOfPurchase,
+    FORMAT(PurchaseAmount / 1000, '$0,000K') AS AmountPurchased
+FROM
+    Borrower B
+INNER JOIN
+    LoanSetupInformation  ON B.BorrowerID = B.BorrowerID;
+
+
+
+
+	--1b (No Loan + All)
+SELECT
+  B.BorrowerID,
+  CONCAT(B.BorrowerFirstName, ' ', COALESCE(B.BorrowerMiddleInitial + ' ', ''), B.BorrowerLastName) AS BorrowerFullName,
+  CONCAT('XXX-XX-', RIGHT(B.TaxPayerID_SSN, 4)) AS MaskedSSN,
+  NULL AS YearOfPurchase,
+  NULL AS AmountPurchased
+FROM Borrower AS B
+LEFT JOIN LoanSetupInformation AS LSI
+  ON B.BorrowerID = LSI.BorrowerID;
+
+SELECT * From [dbo].[Borrower]
+
+  --Option 2 for 1b
+  SELECT B.BorrowerID, 
+       CONCAT(B.BorrowerFirstName, ' ', COALESCE(B.BorrowerMiddleInitial + ' ', ''), B.BorrowerLastName) AS BorrowerFullName, 
+       CONCAT('XXX-XX-', RIGHT(B.TaxPayerID_SSN, 4)) AS MaskedSSN, 
+       YEAR(PurchaseDate) AS YearOfPurchase, 
+       FORMAT(PurchaseAmount / 1000, '$0,000K') AS AmountPurchased 
+FROM Borrower B 
+LEFT JOIN LoanSetupInformation ON B.BorrowerID = LoanSetupInformation.BorrowerID;
+
+
+ ---Report 2 (a)
+
+SELECT
+  B.[Citizenship] AS Citizenship,
+  FORMAT(SUM(LSI.PurchaseAmount), 'c0') AS TotalPurchaseAmount,
+  FORMAT(AVG(LSI.PurchaseAmount), 'c0') AS AveragePurchaseAmount,
+  COUNT(B.BorrowerID) AS [No. Of Borrowers],
+  AVG(YEAR(CURRENT_TIMESTAMP) - YEAR(B.[DoB])) AS AverageAge,
+  FORMAT(AVG(LSI.LTV), 'p0') AS AverageLTV,
+  FORMAT(MIN(LSI.LTV), 'p0') AS MinimumLTV,
+  FORMAT(MAX(LSI.LTV), 'p0') AS MaximumLTV
+FROM Borrower AS B
+LEFT JOIN LoanSetupInformation AS LSI
+  ON B.BorrowerID = LSI.BorrowerID
+GROUP BY
+  B.[Citizenship]
+ORDER BY
+  TotalPurchaseAmount DESC;
+
+
+
+
+--Not working for 2a
+ SELECT
+  B.[Citizenship] AS Citizenship,
+  FORMAT(SUM(LSI.Purchase Amount), 'c0') AS TotalPurchaseAmount,
+  AVG(LSI.Purchase Amount) AS AVG Purchase Amount,
+  COUNT(B.BorrowerID) AS [No. Of Borrowers],
+  AVG(YEAR(CURRENT_TIMESTAMP) - YEAR(B.[DoB])) AS AVG Age of Borrower,
+  AVG(LSI.LTV) AS AVG LTV,
+  MIN(LSI.LTV) AS MIN LTV,
+  MAX(LSI.LTV) AS MAX LTV
+FROM Borrower AS B
+LEFT JOIN LoanSetupInformation AS LSI
+  ON B.BorrowerID = LSI.BorrowerID
+GROUP BY
+  B.[Citizenship]
+ORDER BY
+  TotalPurchaseAmount DESC;
+
+
+--Report 2b
+SELECT
+  COALESCE(B.[Gender], 'X') AS Gender,
+  FORMAT(SUM(LSI.PurchaseAmount), 'c0') AS TotalPurchaseAmount,
+  FORMAT(AVG(LSI.PurchaseAmount), 'c0') AS AveragePurchaseAmount,
+  COUNT(B.BorrowerID) AS [No. Of Borrowers],
+  AVG(YEAR(CURRENT_TIMESTAMP) - YEAR(B.[DoB])) AS AverageAge,
+  FORMAT(AVG(LSI.LTV), 'p0') AS AverageLTV,
+  FORMAT(MIN(LSI.LTV), 'p0') AS MinimumLTV,
+  FORMAT(MAX(LSI.LTV), 'p0') AS MaximumLTV
+FROM Borrower AS B
+LEFT JOIN LoanSetupInformation AS LSI
+  ON B.BorrowerID = LSI.BorrowerID
+GROUP BY
+  B.[Citizenship],
+  COALESCE(B.[Gender], 'X')
+ORDER BY
+  TotalPurchaseAmount DESC;
+
+--Report 2 c
+SELECT
+  YEAR(LSI.[PurchaseDate]) AS [Year of Purchase],
+  FORMAT(SUM(LSI.PurchaseAmount), 'c0') AS TotalPurchaseAmount,
+  FORMAT(AVG(LSI.PurchaseAmount), 'c0') AS AveragePurchaseAmount,
+  COUNT(B.BorrowerID) AS [No. Of Borrowers],
+  FORMAT(AVG(YEAR(CURRENT_TIMESTAMP) - YEAR(B.[DoB])), '0') AS AverageAge,
+  FORMAT(AVG(LSI.LTV), 'p0') AS AverageLTV,
+  FORMAT(MIN(LSI.LTV), 'p0') AS MinimumLTV,
+  FORMAT(MAX(LSI.LTV), 'p0') AS MaximumLTV
+FROM Borrower AS B
+LEFT JOIN LoanSetupInformation AS LSI
+  ON B.BorrowerID = LSI.BorrowerID
+WHERE
+  B.[Gender] IN ('M', 'F')
+GROUP BY
+  YEAR(LSI.[PurchaseDate])
+ORDER BY
+  YEAR(LSI.[PurchaseDate]) DESC;
+
+
+  --Repor 3 - 
+  SELECT
+  CASE
+    WHEN DATEDIFF(DAY, GETDATE(), LSI.[MaturityDate]) <= 1825
+    THEN '0-5 Years'
+    WHEN DATEDIFF(DAY, GETDATE(), LSI.[MaturityDate]) <= 3650
+    THEN '6-10 Years'
+    WHEN DATEDIFF(DAY, GETDATE(), LSI.[MaturityDate]) <= 5475
+    THEN '11-15 Years'
+    WHEN DATEDIFF(DAY, GETDATE(), LSI.[MaturityDate]) <= 7300
+    THEN '16-20 Years'
+    WHEN DATEDIFF(DAY, GETDATE(), LSI.[MaturityDate]) <= 9125
+    THEN '21-25 Years'
+    WHEN DATEDIFF(DAY, GETDATE(), LSI.[MaturityDate]) <= 10950
+    THEN '26-30 Years'
+    ELSE '>30 Years'
+  END AS [Years to Maturity Bin],
+  COUNT(LSI.[LoanNumber]) AS [Number of Loans],
+
+   FORMAT(SUM(LSI.PurchaseAmount), '$0,,,.000B') as TotalPurchaseAmount
+FROM LoanSetupInformation AS LSI
+WHERE
+  LSI.[MaturityDate] > GETDATE()
+GROUP BY
+  [MaturityDate]
+ORDER BY
+  [Years to Maturity Bin];
+
+
+-- Report 4
+SELECT
+YEAR(LSI.[PurchaseDate]) AS [Year],
+LPF.[PaymentFrequency_Description],
+  COUNT(LSI.[LoanNumber]) AS [No. of Loans]
+FROM LoanSetupInformation AS LSI
+JOIN LoanSetupInformation
+  ON LSI.[ProductID] =LSI.[ProductID]
+JOIN [dbo].[LU_PaymentFrequency] AS LPF
+  ON   LPF.[PaymentFrequency_Description]= LPF.[PaymentFrequency_Description]
+WHERE
+  LSI.[MaturityDate] > GETDATE()
+GROUP BY
+YEAR(LSI.[PurchaseDate]),
+LPF.[PaymentFrequency_Description]
+ORDER BY
+YEAR(LSI.[PurchaseDate]),
+  LPF.[PaymentFrequency_Description]
+
+
